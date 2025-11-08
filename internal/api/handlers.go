@@ -21,7 +21,7 @@ func ParseInst(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = pipeline.RunCmds()
+	err = pipeline.RunCmds(p.Steps)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 	}
