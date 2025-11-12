@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/linuxer77/cicd/internal/utils"
+	"github.com/linuxer77/cicd/internal/pipeline"
 )
 
 func main() {
-	utils.DockerRunner()
+	pipeline.CloneRepo("https://github.com/linuxer77/trade-execution")
 }

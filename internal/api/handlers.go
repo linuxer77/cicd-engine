@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/linuxer77/cicd/internal/pipeline"
@@ -13,6 +14,16 @@ func ParseInst(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&p)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := http.Get(p.Repo)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if resp.StatusCode != 200 {
+		http.Error(w, "Invalid Repo link", http.StatusBadRequest)
 		return
 	}
 
