@@ -1,12 +1,9 @@
 package main
 
 import (
-	"net/http"
-
-	"github.com/linuxer77/cicd/internal/api"
+	"github.com/linuxer77/cicd/internal/utils"
 )
 
 func main() {
-	r := api.Router()
-	http.ListenAndServe(":8080", r)
+	utils.DockerRunner()
 }
