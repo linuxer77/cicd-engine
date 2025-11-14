@@ -15,7 +15,7 @@ func CloneRepo(url string) {
 
 	cmd := exec.Command("git", "clone", url, location)
 
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		fmt.Println("could not run command: ", err)
