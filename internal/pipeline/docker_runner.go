@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -14,7 +13,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-func DockerRunSteps() {
+func DockerRunSteps(steps string, containerName string) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -31,8 +30,6 @@ func DockerRunSteps() {
 	io.Copy(os.Stdout, reader)
 	reader.Close()
 	fmt.Println("Successfully pulled the image")
-
-	containerName := "step2"
 
 	containerConfig := &container.Config{
 		Image: imageName,
@@ -67,8 +64,8 @@ func DockerRunSteps() {
 		ctx,
 		containerConfig,
 		hostConfig,
-		nil, // network config
-		nil, // platform
+		nil,
+		nil,
 		containerName,
 	)
 	if err != nil {
@@ -83,6 +80,10 @@ func DockerRunSteps() {
 	fmt.Println("Container started Successfully")
 
 	fmt.Println("On the way of running the commands.....")
+	err = ExecCommand(steps, resp.ID)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Stopping container now.")
 	err = StopContainer(ctx, cli, resp.ID)
@@ -118,14 +119,15 @@ func StopContainer(ctx context.Context, cli *client.Client, containerID string) 
 	return nil
 }
 
-func ExecCommands(step string) error {
-	formattedCmds := strings.Fields(step)
-	name := formattedCmds[0]
-	cmd := exec.Command(name, formattedCmds[1:]...)
-	cmd.Stdout = os.Stdout
-	if err := cmd.Run(); err != nil {
-		fmt.Println("could not run command")
+func ExecCommand(command, containerID string) error {
+	cmd := "docker"
+	fullCmd := exec.Command(cmd, "exec", "-it", containerID, command)
+
+	fullCmd.Stderr = os.Stderr
+
+	if err := fullCmd.Run(); err != nil {
 		return err
 	}
+	fmt.Println("Running commands compeletion completed.")
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/linuxer77/cicd/internal/pipeline"
 )
@@ -31,9 +32,11 @@ func ParseInst(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Steps should be more than 0", http.StatusBadRequest)
 		return
 	}
+}
 
-	err = pipeline.RunCmds(p.Steps)
-	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+func HandleSteps(steps []string) error {
+	for i, step := range p.Steps {
+		containername := "step" + strconv.Itoa(i)
+		pipeline.DockerRunSteps(step, containername)
 	}
 }
