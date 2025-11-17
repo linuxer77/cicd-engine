@@ -6,14 +6,16 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
 
-func DockerRunSteps(steps string, containerName string) {
+func DockerRunSteps(steps string, containerName string, path string) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -32,7 +34,8 @@ func DockerRunSteps(steps string, containerName string) {
 	fmt.Println("Successfully pulled the image")
 
 	containerConfig := &container.Config{
-		Image: imageName,
+		Image:      imageName,
+		WorkingDir: "/app",
 		ExposedPorts: nat.PortSet{
 			"80/tcp": struct{}{},
 		},
@@ -44,6 +47,7 @@ func DockerRunSteps(steps string, containerName string) {
 			"created-by": "my-go-program",
 			"purpose":    "testing",
 		},
+		Cmd: []string{"sleep", "60"},
 	}
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{
@@ -54,8 +58,13 @@ func DockerRunSteps(steps string, containerName string) {
 				},
 			},
 		},
-		RestartPolicy: container.RestartPolicy{
-			Name: "unless-stopped",
+		RestartPolicy: container.RestartPolicy{},
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: path,
+				Target: "/app",
+			},
 		},
 	}
 	fmt.Println("Creating container: ", containerName)
@@ -71,31 +80,65 @@ func DockerRunSteps(steps string, containerName string) {
 	if err != nil {
 		fmt.Println("Can't create the container: ", err)
 	}
-	fmt.Println("resp: ", resp)
 	fmt.Printf("Container created with ID: %s\n", resp.ID)
-	err = cli.ContainerStart(ctx, resp.ID, container.StartOptions{})
+
+	err = StartContainer(ctx, cli, resp.ID)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Container started Successfully")
 
-	fmt.Println("On the way of running the commands.....")
 	err = ExecCommand(steps, resp.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Stopping container now.")
 	err = StopContainer(ctx, cli, resp.ID)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Successfully stopped the container")
 
 	err = RemoveContainer(ctx, cli, resp.ID)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func StartContainer(ctx context.Context, cli *client.Client, containerID string) error {
+	fmt.Printf("Attempting to start the container: %s\n", containerID)
+	time.Sleep(1 * time.Second)
+	err := cli.ContainerStart(ctx, containerID, container.StartOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Successfully started the container %s: ", containerID)
+	return nil
+}
+
+func ExecCommand(command, containerID string) error {
+	fmt.Println("On the way of running the commands.....")
+	time.Sleep(1 * time.Second)
+	cmd := "docker"
+	fullCmd := exec.Command(cmd, "exec", "-i", containerID, command)
+
+	fullCmd.Stderr = os.Stderr
+
+	if err := fullCmd.Run(); err != nil {
+		return err
+	}
+	fmt.Println("Running commands compeletion completed.")
+	return nil
+}
+
+func StopContainer(ctx context.Context, cli *client.Client, containerID string) error {
+	fmt.Printf("Attempting to stop the container: %s\n", containerID)
+
+	time.Sleep(1 * time.Second)
+	err := cli.ContainerStop(ctx, containerID, container.StopOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Successfully stopped the container %s: ", containerID)
+	return nil
 }
 
 func RemoveContainer(ctx context.Context, cli *client.Client, containerID string) error {
@@ -105,29 +148,5 @@ func RemoveContainer(ctx context.Context, cli *client.Client, containerID string
 		return err
 	}
 	fmt.Printf("Successfully removed the container: %s\n", containerID)
-	return nil
-}
-
-func StopContainer(ctx context.Context, cli *client.Client, containerID string) error {
-	fmt.Printf("Attempting to stop the container: %s\n", containerID)
-
-	err := cli.ContainerStop(ctx, containerID, container.StopOptions{})
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Successfully stopped the container %s: ", containerID)
-	return nil
-}
-
-func ExecCommand(command, containerID string) error {
-	cmd := "docker"
-	fullCmd := exec.Command(cmd, "exec", "-it", containerID, command)
-
-	fullCmd.Stderr = os.Stderr
-
-	if err := fullCmd.Run(); err != nil {
-		return err
-	}
-	fmt.Println("Running commands compeletion completed.")
 	return nil
 }
