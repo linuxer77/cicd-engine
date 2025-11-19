@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -15,7 +14,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-func DockerRunSteps(steps string, containerName string, path string) {
+func DockerRunSteps(steps []string, containerName string, path string) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -84,21 +83,25 @@ func DockerRunSteps(steps string, containerName string, path string) {
 
 	err = StartContainer(ctx, cli, resp.ID)
 	if err != nil {
+		fmt.Println("Error in start container: ", err)
 		panic(err)
 	}
 
-	err = ExecCommand(steps, resp.ID)
+	err = ExecCommand(ctx, cli, resp.ID, steps)
 	if err != nil {
+		fmt.Println("Error in exec commands:", err)
 		panic(err)
 	}
 
 	err = StopContainer(ctx, cli, resp.ID)
 	if err != nil {
+		fmt.Println("Error in stop container", err)
 		panic(err)
 	}
 
 	err = RemoveContainer(ctx, cli, resp.ID)
 	if err != nil {
+		fmt.Println("Error in remove container", err)
 		panic(err)
 	}
 }
@@ -110,22 +113,18 @@ func StartContainer(ctx context.Context, cli *client.Client, containerID string)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Successfully started the container %s: ", containerID)
+	fmt.Printf("Successfully started the container: %s\n", containerID)
 	return nil
 }
 
-func ExecCommand(command, containerID string) error {
+func ExecCommand(ctx context.Context, cli *client.Client, containerID string, command []string) error {
 	fmt.Println("On the way of running the commands.....")
-	time.Sleep(1 * time.Second)
-	cmd := "docker"
-	fullCmd := exec.Command(cmd, "exec", "-i", containerID, command)
-
-	fullCmd.Stderr = os.Stderr
-
-	if err := fullCmd.Run(); err != nil {
+	execID, err := cli.ContainerExecCreate(ctx, containerID, container.ExecOptions{AttachStdin: true, AttachStderr: true, AttachStdout: true, WorkingDir: "/app", Cmd: command})
+	if err != nil {
 		return err
 	}
-	fmt.Println("Running commands compeletion completed.")
+	cli.ContainerExecStart(ctx, execID.ID, container.ExecStartOptions{})
+	fmt.Println("Successfully run the commands.")
 	return nil
 }
 

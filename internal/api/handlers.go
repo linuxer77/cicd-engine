@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/linuxer77/cicd/internal/pipeline"
 )
@@ -53,8 +54,9 @@ func ParseInst(w http.ResponseWriter, r *http.Request) {
 
 func HandleSteps(steps []string, path string) error {
 	for i, step := range p.Steps {
+		command := strings.Fields(step)
 		containername := "step" + strconv.Itoa(i)
-		pipeline.DockerRunSteps(step, containername, path)
+		pipeline.DockerRunSteps(command, containername, path)
 	}
 	return nil
 }
