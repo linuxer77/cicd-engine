@@ -15,6 +15,7 @@ var p pipeline.Pipeline
 func ParseInst(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&p)
 	if err != nil {
+		fmt.Println("Error when decoding: ", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
@@ -38,6 +39,7 @@ func ParseInst(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(p.Steps) == 0 {
+		fmt.Println("Steps should be greater than 0: ", err)
 		http.Error(w, "Steps should be more than 0", http.StatusBadRequest)
 		return
 	}
